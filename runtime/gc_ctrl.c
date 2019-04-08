@@ -193,6 +193,8 @@ static value heap_stats (int returnstats)
         break;
       case Caml_blue:
         CAMLassert (Wosize_hd (cur_hd) > 0);
+        CAMLassert (Field (Val_hp (cur_hp), 0) == (value) NULL
+                    || Hp_val (Field (Val_hp (cur_hp), 0)) > cur_hp);
         ++ free_blocks;
         free_words += Whsize_hd (cur_hd);
         if (Whsize_hd (cur_hd) > largest_free){
@@ -218,6 +220,7 @@ static value heap_stats (int returnstats)
       cur_hp = Next (cur_hp);
     }
     CAMLassert (cur_hp == (header_t *) chunk_end);
+    CAMLassert (Chunk_next (chunk) == NULL || Chunk_next (chunk) > chunk);
     chunk = Chunk_next (chunk);
   }
 
@@ -227,6 +230,7 @@ static value heap_stats (int returnstats)
 
   CAMLassert (heap_chunks == caml_stat_heap_chunks);
   CAMLassert (live_words + free_words + fragments == caml_stat_heap_wsz);
+  CAMLassert (free_words == caml_fl_cur_wsz);
 
   if (returnstats){
     CAMLlocal1 (res);
