@@ -158,14 +158,14 @@ static char *compact_allocate (mlsize_t size)
   return adr;
 }
 
-static void do_compaction (void)
+static void do_compaction (int do_check)
 {
   char *ch, *chend;
   CAMLassert (caml_gc_phase == Phase_idle);
   caml_gc_message (0x10, "Compacting heap...\n");
 
 #ifdef DEBUG
-  caml_heap_check ();
+  if (do_check) caml_heap_check ();
 #endif
 
   /* First pass: encode all noninfix headers. */
@@ -434,7 +434,7 @@ void caml_compact_heap (void)
   CAMLassert (caml_ephe_ref_table.ptr == caml_ephe_ref_table.base);
   CAMLassert (caml_custom_table.ptr == caml_custom_table.base);
 
-  do_compaction ();
+  do_compaction (1);
   CAML_INSTR_TIME (tmr, "compact/main");
   /* Compaction may fail to shrink the heap to a reasonable size
      because it deals in complete chunks: if a very large chunk
@@ -497,7 +497,7 @@ void caml_compact_heap (void)
     if (caml_stat_heap_wsz > caml_stat_top_heap_wsz){
       caml_stat_top_heap_wsz = caml_stat_heap_wsz;
     }
-    do_compaction ();
+    do_compaction (0);
     CAMLassert (caml_stat_heap_chunks == 1);
     CAMLassert (Chunk_next (caml_heap_start) == NULL);
     CAMLassert (caml_stat_heap_wsz == Wsize_bsize (Chunk_size (chunk)));
