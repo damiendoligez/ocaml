@@ -1590,18 +1590,39 @@ int caml_domain_is_in_stw(void) {
    The same logic would apply for any other situations in which a domain
    wants to join or leave the set of STW participants.
 
-  The explanation above applies if [sync] = 1. When [sync] = 0, no
-  synchronization happens, and we simply run the handler asynchronously on
-  all domains. We still hold the stw_leader field until we know that
-  every domain has run the handler, so another STW section cannot
-  interfere with this one.
+  Bearing all that in mind, the spec of this function, which drives
+  all STW sections, is as follows:
 
+  `caml_try_run_on_all_domains_with_spin_work
+    (sync, handler, data, leader_setup, enter_spin_callback, enter_spin_data)`
+
+  Try to run an STW section in which all domains will run
+  `handler(domain, data, N, p)` (where `N` and `p` define the
+  participants in the STW section).
+
+  To create the STW section, we must first become the STW leader as
+  detailed above. If this fails, return 0.
+
+  Once we are STW leader - so outside any other STW section - but
+  before the other domains have been notified of this new STW section,
+  we call `leader_setup(domain, data)`.
+
+  If `sync` is non-zero, all these calls are synchronous - none are
+  called until after all domains have arrived at the "entry barrier".
+  If `enter_spin_callback` is non-NULL, then while any domain is
+  waiting for other domains to reach the entry barrier, it may run
+  `enter_spin_callback(domain, enter_spin_data)` repeatedly (stopping
+  if it ever returns zero).
+
+  If `sync` is zero, there is no entry barrier, so no synchronization
+  happens. We still become the STW leader, so no other STW can
+  interfere with this one.
 */
 int caml_try_run_on_all_domains_with_spin_work(
   int sync,
   void (*handler)(caml_domain_state*, void*, int, caml_domain_state**),
   void* data,
-  void (*leader_setup)(caml_domain_state*),
+  void (*leader_setup)(caml_domain_state*, void*),
   int (*enter_spin_callback)(caml_domain_state*, void*),
   void* enter_spin_data)
 {
@@ -1669,7 +1690,7 @@ int caml_try_run_on_all_domains_with_spin_work(
   }
 
   if( leader_setup ) {
-    leader_setup(domain_state);
+    leader_setup(domain_state, data);
   }
 
 #ifdef DEBUG
@@ -1736,7 +1757,7 @@ int caml_try_run_on_all_domains_with_spin_work(
 int caml_try_run_on_all_domains(
   void (*handler)(caml_domain_state*, void*, int, caml_domain_state**),
   void* data,
-  void (*leader_setup)(caml_domain_state*))
+  void (*leader_setup)(caml_domain_state*, void *))
 {
   return
       caml_try_run_on_all_domains_with_spin_work(1,
@@ -1748,7 +1769,7 @@ int caml_try_run_on_all_domains(
 int caml_try_run_on_all_domains_async(
   void (*handler)(caml_domain_state*, void*, int, caml_domain_state**),
   void* data,
-  void (*leader_setup)(caml_domain_state*))
+  void (*leader_setup)(caml_domain_state*, void *))
 {
   return
       caml_try_run_on_all_domains_with_spin_work(0,
