@@ -584,7 +584,7 @@ static void adopt_orphaned_work (int expected_status)
   orph_ephe_list_verify_status(expected_status);
 #endif
 
-  if (no_orphaned_work() || caml_domain_is_terminating())
+  if (no_orphaned_work())
     return;
 
   caml_plat_lock_blocking(&orphaned_lock);
@@ -607,10 +607,18 @@ static void adopt_orphaned_work (int expected_status)
   while (f != NULL) {
     myf = domain_state->final_info;
     CAMLassert (caml_gc_phase == Phase_sweep_and_mark_main);
-    /* Since we are in [Phase_sweep_and_mark_main], the current domain has not
-       updated its finalisers. */
-    CAMLassert (!myf->updated_first);
-    CAMLassert (!myf->updated_last);
+
+    /* updated_first/last may be true if the current domain is terminating
+       and has orphaned some finalisers but now has to adopt back (the same
+       or other) finalisers. */
+    if (myf->updated_first){
+      (void)caml_atomic_counter_incr(&num_domains_to_final_update_first);
+      f->updated_first = 0;
+    }
+    if (myf->updated_last){
+      (void)caml_atomic_counter_incr(&num_domains_to_final_update_last);
+      f->updated_last = 0;
+    }
 
     if (f->todo_head) {
       /* Adopt the finalising set. */
@@ -1168,7 +1176,7 @@ static void shrink_mark_stack (void)
   mark_entry* shrunk_stack;
 
   caml_gc_log ("Shrinking mark stack to %"
-                  ARCH_INTNAT_PRINTF_FORMAT "uk bytes\n",
+                  ARCH_INTNAT_PRINTF_FORMAT "uk bytes",
                   init_stack_bsize / 1024);
 
   shrunk_stack = (mark_entry*) caml_stat_resize_noexc ((char*) stk->stack,
@@ -1501,6 +1509,8 @@ void caml_mark_roots_stw (int participant_count,
     atomic_store_relaxed(&global_roots_status, WAITING);
     /* Adopt orphaned work from domains that were spawned and terminated in the
        previous cycle. */
+    /* There must be no orphaned work remaining when this phase change
+       takes place because orphaned work contains roots. */
     adopt_orphaned_work (caml_global_heap_state.UNMARKED);
   }
 
@@ -1941,7 +1951,9 @@ mark_again:
       /* Nothing has been marked while updating last */
     }
 
-    adopt_orphaned_work(caml_global_heap_state.MARKED);
+    if (!caml_domain_is_terminating()){
+      adopt_orphaned_work(caml_global_heap_state.MARKED);
+    }
 
     /* Ephemerons */
     if (caml_gc_phase != Phase_sweep_ephe) {
