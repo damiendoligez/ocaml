@@ -556,7 +556,7 @@ void caml_orphan_finalisers (caml_domain_state* domain_state)
   /* [caml_orphan_finalisers] is called in a while loop in
      [caml_domain_terminate].
      We take care to decrement the [num_domains_to_final_update*] counters only
-     if we have not already decremented it for the current cycle. */
+     if we have not already decremented them for the current cycle. */
   if(!f->updated_first) {
     (void)caml_atomic_counter_decr(&num_domains_to_final_update_first);
     f->updated_first = 1;
@@ -613,11 +613,11 @@ static void adopt_orphaned_work (int expected_status)
        or other) finalisers. */
     if (myf->updated_first){
       (void)caml_atomic_counter_incr(&num_domains_to_final_update_first);
-      f->updated_first = 0;
+      myf->updated_first = 0;
     }
     if (myf->updated_last){
       (void)caml_atomic_counter_incr(&num_domains_to_final_update_last);
-      f->updated_last = 0;
+      myf->updated_last = 0;
     }
 
     if (f->todo_head) {
