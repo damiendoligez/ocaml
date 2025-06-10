@@ -83,9 +83,11 @@ static atomic_uintnat num_domains_to_ephe_sweep;
    a domain finishes processing its first or last finalisers, it decrements the
    appropriate counter.
 
-   Newly created domains increment both the counters. Terminating domain
-   orphans its finalisers and then decrements the counters. See
-   [caml_final_domain_terminate]. */
+   Newly created domains increment both counters. A terminating domain
+   orphans its finalisers and then decrements the counters. The counters
+   also increase when some orphaned finalisers are adopted by a terminating
+   domain that had orphaned its finalisers. See [caml_final_domain_terminate]
+   and [adopt_orphaned_work]. */
 static atomic_uintnat num_domains_to_final_update_first;
 static atomic_uintnat num_domains_to_final_update_last;
 
