@@ -326,7 +326,7 @@ CLEAN_PATH=$(echo "$PATH" | tr ':' '\n' | grep -vF '/homebrew/' | paste -sd: -)
 PATH="$CLEAN_PATH" main_build
 
 cd testsuite
-if test -n "$jobs" && test -x /usr/bin/parallel
+if test -n "$jobs" && type parallel
 then PARALLEL="$jobs $PARALLEL" $make --warn-undefined-variables \
                                       SHOW_TIMINGS=1 parallel
 else $make --warn-undefined-variables SHOW_TIMINGS=1 all

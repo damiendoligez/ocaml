@@ -42,7 +42,7 @@ ${main} -conf --disable-native-compiler \
 
 echo "============== no flat float arrays, clang, C23 ================= `date`"
 ${main} -conf --disable-flat-float-array \
-        -conf CC=clang-18 \
+        -conf CC=clang \
         -conf CFLAGS=-std=gnu2x
 
 echo "============== flambda ================= `date`"
@@ -55,6 +55,6 @@ echo "============== bootstrap, pic ================= `date`"
 ${main} -with-bootstrap -conf --with-pic
 
 echo "============== cleanup at exit, clang ================= `date`"
-OCAMLRUNPARAM="c=1" ${main} -conf CC=clang-18
+OCAMLRUNPARAM="c=1" ${main} -conf CC=clang
 
 date
